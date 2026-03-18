@@ -1,0 +1,12 @@
+{
+  "name": "dataviewjs-cli",
+  "version": "0.1.0",
+  "description": "Run a DataviewJS-compatible subset outside Obsidian.",
+  "type": "commonjs",
+  "bin": {
+    "dataviewjs": "./src/cli.js"
+  },
+  "scripts": {
+    "test": "node --test"
+  }
+}

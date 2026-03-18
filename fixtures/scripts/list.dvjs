@@ -1,0 +1,5 @@
+let page = dv.page('journal/2023-01-17.md');
+if(page.file.inlinks.length > 0){
+	dv.header(4, 'Mentions')
+}
+dv.list(page.file.inlinks);

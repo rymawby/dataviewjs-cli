@@ -1,0 +1,11 @@
+const projects = dv.pages('"Projects"').sort((page) => page.rating);
+dv.header(2, "Projects");
+dv.table(
+  ["Project", "Owner", "Status", "Open Tasks"],
+  projects.map((page) => [
+    page.file.name,
+    page.owner,
+    page.status,
+    page.file.tasks.filter((task) => !task.completed).length
+  ])
+);
