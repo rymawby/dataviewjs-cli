@@ -623,6 +623,22 @@ function createPageShape(page) {
   };
 }
 
+function createVirtualPage(filePath) {
+  const normalized = String(filePath).replace(/\\/g, "/");
+  const name = path.posix.basename(normalized, ".md");
+  const folder = path.posix.dirname(normalized) === "." ? "" : path.posix.dirname(normalized);
+  return {
+    path: normalized,
+    name,
+    folder,
+    fields: {},
+    tasks: [],
+    tags: [],
+    links: [],
+    inlinks: []
+  };
+}
+
 function buildSourcePredicate(source, currentFile, resolveLink) {
   if (!source) {
     return () => true;
@@ -1027,7 +1043,7 @@ function createDataviewApi(vault, currentFile, collector, context) {
     __currentFile: currentFile,
 
     current() {
-      return createPageShape(vault.pagesByPath.get(currentFile));
+      return createPageShape(vault.pagesByPath.get(currentFile) || createVirtualPage(currentFile));
     },
 
     page(link) {
@@ -1299,6 +1315,13 @@ async function runDataviewJs({ vaultPath, currentFile, script, format = "markdow
     throw new Error(`Vault path does not exist: ${vaultPath}`);
   }
 
+  const runtime = createDataviewRuntime({ vaultPath, currentFile, format });
+  await executeDataviewJs(runtime, script);
+
+  return runtime.collector.output();
+}
+
+function createDataviewRuntime({ vaultPath, currentFile, format = "markdown" }) {
   const vault = buildVault(vaultPath);
   vault.vaultPath = vaultPath;
   const collector = createCollector(format);
@@ -1310,18 +1333,50 @@ async function runDataviewJs({ vaultPath, currentFile, script, format = "markdow
   context.dv = dv;
   context.dataview = dv;
 
-  const wrapped = `(async () => {\n${script}\n})()`;
-  const runner = new vm.Script(wrapped, { filename: currentFile });
-  await runner.runInContext(context, { timeout: 1000 });
+  return { vault, collector, context, dv, currentFile };
+}
 
-  return collector.output();
+async function executeDataviewJs(runtime, script, filename) {
+  const wrapped = `(async () => {\n${script}\n})()`;
+  const runner = new vm.Script(wrapped, { filename: filename || runtime.currentFile });
+  await runner.runInContext(runtime.context, { timeout: 1000 });
+}
+
+async function renderMarkdownContent({ vaultPath, currentFile, content, format = "markdown" }) {
+  const pattern = /```(dataviewjs|dataview)\n([\s\S]*?)```/g;
+  let result = "";
+  let lastIndex = 0;
+  let match;
+
+  while ((match = pattern.exec(content)) !== null) {
+    result += content.slice(lastIndex, match.index);
+    const [, language, body] = match;
+
+    if (language === "dataviewjs") {
+      const childRuntime = createDataviewRuntime({ vaultPath, currentFile, format });
+      await executeDataviewJs(childRuntime, body, `${currentFile}:dataviewjs`);
+      result += childRuntime.collector.output();
+    } else {
+      const childRuntime = createDataviewRuntime({ vaultPath, currentFile, format });
+      const markdown = await childRuntime.dv.tryQueryMarkdown(body.trim(), currentFile);
+      result += markdown;
+    }
+
+    lastIndex = pattern.lastIndex;
+  }
+
+  result += content.slice(lastIndex);
+  return result;
 }
 
 module.exports = {
   DataArray: DataArrayCore,
+  createDataviewRuntime,
   createDateValue,
   createDurationValue,
   createLink,
+  executeDataviewJs,
   isDataArray,
+  renderMarkdownContent,
   runDataviewJs
 };

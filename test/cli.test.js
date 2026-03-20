@@ -4,6 +4,7 @@ const path = require("node:path");
 const { execFile } = require("node:child_process");
 const { promisify } = require("node:util");
 const { runDataviewJs } = require("../src/runtime");
+const { renderDailyNote } = require("../src/daily");
 
 const execFileAsync = promisify(execFile);
 const root = path.resolve(__dirname, "..");
@@ -297,4 +298,44 @@ test("runtime supports dv.view folder loading and css injection", async () => {
 
   assert.match(output, /<style>\.custom-view \{ color: red; \}\s*<\/style>/);
   assert.match(output, /view input: Hello/);
+});
+
+test("daily renderer processes templater, transclusions, and dataview blocks", async () => {
+  const output = await renderDailyNote({
+    vaultPath,
+    date: "2025-08-06",
+    templatePath: "templates/Daily note template.md",
+    dailyFolder: "journal",
+    templaterScripts: "scripts/user"
+  });
+
+  assert.match(output, /^# 2025-08-06/m);
+  assert.match(output, /Hello 2025-08-06 \(true\)/);
+  assert.match(output, /Shared transcluded content\./);
+  assert.match(output, /- Alpha/);
+  assert.match(output, /- Beta/);
+  assert.match(output, /- \[\[People\/Alice\]\]/);
+  assert.match(output, /- \[\[People\/Bob\]\]/);
+});
+
+test("cli daily renders a dated note from template", async () => {
+  const { stdout } = await execFileAsync(process.execPath, [
+    cliPath,
+    "daily",
+    "--vault",
+    vaultPath,
+    "--date",
+    "2025-08-06",
+    "--template",
+    "templates/Daily note template.md",
+    "--daily-folder",
+    "journal",
+    "--templater-scripts",
+    "scripts/user"
+  ]);
+
+  assert.match(stdout, /^# 2025-08-06/m);
+  assert.match(stdout, /Hello 2025-08-06 \(true\)/);
+  assert.match(stdout, /Shared transcluded content\./);
+  assert.match(stdout, /- Alpha/);
 });

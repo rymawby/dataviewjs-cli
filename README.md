@@ -1,177 +1,215 @@
 # dataviewjs-cli
 
-Run a practical DataviewJS-compatible subset outside Obsidian.
+Run DataviewJS outside Obsidian.
 
-This project lets you execute `dataviewjs` scripts against an Obsidian vault from the command line, without launching Obsidian. It is designed for scripting, testing, CI workflows, and debugging DataviewJS snippets against real markdown content.
+`dataviewjs-cli` is a small CLI for rendering a practical subset of Obsidian workflows from the terminal. It started as a personal tool, largely vibe engineered to make it easier to inspect `dataviewjs`, `dv.view(...)`, and daily-note templates without launching Obsidian. If it is useful to someone else, use it.
 
-This was mainly vibe engineered for personal use. If it is useful to someone else, use it.
+The project currently focuses on:
 
-## What It Does
+- executing `dataviewjs` snippets against a vault
+- rendering a useful subset of Dataview’s code-reference API
+- loading custom `dv.view(...)` scripts from the vault
+- rendering daily notes that mix Templater, transclusions, and Dataview blocks
 
-- Scans an Obsidian vault and indexes markdown notes
-- Parses frontmatter, inline fields, tasks, tags, links, and backlinks
-- Injects a Dataview-like `dv` object into a script runtime
-- Renders output as Markdown, JSON, or plain text
-- Supports loading custom `dv.view(...)` scripts from the vault
-- Supports a compatibility-focused subset of Dataview query and utility APIs
+It is not a full reimplementation of Obsidian, Dataview, or Templater.
 
-## Status
+## What It Can Do
 
-This is not a full reimplementation of Obsidian or the Dataview plugin.
+Current capabilities:
 
-It currently aims to support the documented DataviewJS code-reference surface well enough for real CLI usage, but some areas are still compatibility approximations:
+- scan a vault and index markdown notes
+- parse frontmatter, inline fields, tasks, tags, links, and backlinks
+- execute `dataviewjs` with an injected `dv` object
+- render `dataview` query blocks
+- load `dv.view(...)` scripts from the vault
+- render markdown output, JSON output, or plain text output
+- render a daily-note pipeline with:
+  - Templater commands
+  - `tp.user.*` helper scripts
+  - markdown transclusions like `![[Note#Section]]`
+  - `dataview` and `dataviewjs` blocks
 
-- DQL parsing is partial, not a full Dataview parser
-- Rendering targets Markdown/JSON/text output, not Obsidian DOM output
-- Vault metadata is inferred from files on disk, not from Obsidian internals
-- Advanced Dataview edge cases may still differ from the plugin
+## What It Is Not
 
-## Features
+This repo is intentionally scoped.
 
-Currently supported:
+It does not currently aim for:
 
-- Core page access:
-  - `dv.current()`
-  - `dv.page(...)`
-  - `dv.pages(...)`
-  - `dv.pagePaths(...)`
-- Rendering:
-  - `dv.el(...)`
-  - `dv.header(...)`
-  - `dv.paragraph(...)`
-  - `dv.span(...)`
-  - `dv.list(...)`
-  - `dv.taskList(...)`
-  - `dv.table(...)`
-  - `dv.markdownList(...)`
-  - `dv.markdownTaskList(...)`
-  - `dv.markdownTable(...)`
-  - `dv.execute(...)`
-  - `dv.executeJs(...)`
-  - `dv.view(...)`
-- Utility/value helpers:
-  - `dv.array(...)`
-  - `dv.isArray(...)`
-  - `dv.fileLink(...)`
-  - `dv.sectionLink(...)`
-  - `dv.blockLink(...)`
-  - `dv.date(...)`
-  - `dv.duration(...)`
-  - `dv.compare(...)`
-  - `dv.equal(...)`
-  - `dv.clone(...)`
-  - `dv.parse(...)`
-- File I/O:
-  - `dv.io.csv(...)`
-  - `dv.io.load(...)`
-  - `dv.io.normalize(...)`
-- Query/evaluation helpers:
-  - `dv.query(...)`
-  - `dv.tryQuery(...)`
-  - `dv.queryMarkdown(...)`
-  - `dv.tryQueryMarkdown(...)`
-  - `dv.evaluate(...)`
-  - `dv.tryEvaluate(...)`
+- full Obsidian plugin emulation
+- exact DOM parity with Dataview inside Obsidian
+- complete Templater compatibility
+- full Dataview query-language support
+- write operations into the vault as part of rendering
 
-## CLI Usage
+The goal is practical offline rendering, debugging, and automation, not perfect plugin fidelity.
 
-Run a script file:
+## Installation
+
+At the moment this repo is intended to be run directly with Node.
+
+Requirements:
+
+- Node.js 20+
+
+Clone the repo and run commands with:
+
+```bash
+node src/cli.js ...
+```
+
+## Commands
+
+### `run`
+
+Run a DataviewJS script file:
 
 ```bash
 node src/cli.js run \
-  --vault ~/Projects/Obsidian/rymawby \
+  --vault /path/to/vault \
   --current journal/2025-01-16.md \
-  fixtures/scripts/project-table.dvjs
+  ./script.dvjs
 ```
+
+### `eval`
 
 Evaluate inline DataviewJS:
 
 ```bash
 node src/cli.js eval \
-  --vault ~/Projects/Obsidian/rymawby \
+  --vault /path/to/vault \
   --current journal/2025-01-16.md \
   'await dv.view("scripts-for-templater/listMeetingNotesFromThisDay");'
 ```
 
-Choose an output format:
+### `daily`
+
+Render a dated daily note:
 
 ```bash
-node src/cli.js eval \
-  --vault ./fixtures/vault \
-  --current Projects/Alpha.md \
-  --format json \
-  'dv.list(dv.pages("#person").map(p => p.file.name));'
+node src/cli.js daily \
+  --vault /path/to/vault \
+  --date 2026-03-20
 ```
+
+This command:
+
+1. resolves the daily note path for the requested date
+2. uses the existing note if it exists
+3. otherwise falls back to a template
+4. renders supported Templater expressions
+5. expands markdown transclusions
+6. renders `dataview` and `dataviewjs` blocks
 
 ## CLI Reference
 
 ```text
 dataviewjs run --vault <path> --current <note.md> <script-file>
 dataviewjs eval --vault <path> --current <note.md> "<script>"
+dataviewjs daily --vault <path> [--date <YYYY-MM-DD>]
 ```
 
 Options:
 
-- `--vault <path>`: Path to the vault root
-- `--current <path>`: Current note path relative to the vault
+- `--vault <path>`: vault root
+- `--current <path>`: current note path relative to the vault
 - `--format <name>`: `markdown`, `json`, or `text`
+- `--date <YYYY-MM-DD>`: date for `daily`
+- `--template <path>`: template used by `daily`
+- `--daily-folder <path>`: daily notes folder used by `daily`
+- `--templater-scripts <path>`: root folder for `tp.user.*` functions
 
-## How It Works
+## Supported Dataview API Surface
 
-The runtime:
+The runtime currently supports a broad practical subset of the Dataview code-reference API.
 
-1. Walks the vault and indexes all markdown files.
-2. Extracts frontmatter, inline fields, tasks, tags, links, and backlinks.
-3. Resolves Obsidian-style wikilinks, including basename-style links like `[[2025-01-16]]`.
-4. Creates a Dataview-like execution context with `dv`.
-5. Executes the script in a Node VM sandbox.
-6. Collects rendered output and prints it to stdout.
+Core page access:
 
-## Supported Vault Behaviors
+- `dv.current()`
+- `dv.page(...)`
+- `dv.pages(...)`
+- `dv.pagePaths(...)`
 
-The indexer currently supports:
+Render helpers:
 
-- YAML frontmatter fields
-- YAML list-style tags
-- Inline fields like `owner:: Alice`
-- Markdown tasks like `- [ ] Task`
-- Inline `#tags`
-- Wikilinks like:
-  - `[[Note]]`
-  - `[[folder/Note]]`
-  - `[[Note#Section]]`
-  - `[[Note|Alias]]`
-- Backlink tracking via `file.inlinks`
-- Basic `file.day` inference from filenames like `2025-01-16.md`
+- `dv.el(...)`
+- `dv.header(...)`
+- `dv.paragraph(...)`
+- `dv.span(...)`
+- `dv.list(...)`
+- `dv.taskList(...)`
+- `dv.table(...)`
+- `dv.markdownList(...)`
+- `dv.markdownTaskList(...)`
+- `dv.markdownTable(...)`
+- `dv.execute(...)`
+- `dv.executeJs(...)`
+- `dv.view(...)`
 
-## `dv.view(...)` Support
+Utility helpers:
 
-Custom views can be loaded from either:
+- `dv.array(...)`
+- `dv.isArray(...)`
+- `dv.fileLink(...)`
+- `dv.sectionLink(...)`
+- `dv.blockLink(...)`
+- `dv.date(...)`
+- `dv.duration(...)`
+- `dv.compare(...)`
+- `dv.equal(...)`
+- `dv.clone(...)`
+- `dv.parse(...)`
 
-- `<vault>/<path>.js`
-- `<vault>/<path>/view.js`
-- `<vault>/scripts/<path>.js`
-- `<vault>/scripts/<path>/view.js`
+File I/O:
 
-If a `view.css` file exists beside a folder-based `view.js`, it is injected into the rendered output.
+- `dv.io.csv(...)`
+- `dv.io.load(...)`
+- `dv.io.normalize(...)`
 
-Example:
+Query and evaluation helpers:
 
-```js
-await dv.view("scripts-for-templater/listMeetingNotesFromThisDay");
-```
+- `dv.query(...)`
+- `dv.tryQuery(...)`
+- `dv.queryMarkdown(...)`
+- `dv.tryQueryMarkdown(...)`
+- `dv.evaluate(...)`
+- `dv.tryEvaluate(...)`
+
+## Daily Rendering Scope
+
+The `daily` command is intentionally scoped to the patterns already common in real Obsidian workflows.
+
+Current support includes:
+
+- `<% ... %>` Templater expressions
+- `<%* ... %>` execution blocks
+- `tp.file.title`
+- `tp.file.path()`
+- `tp.file.exists(...)`
+- `tp.frontmatter`
+- `tp.user.*` user-function loading from a script folder
+- markdown transclusions like `![[Note]]` and `![[Note#Section]]`
+- `dataview` and `dataviewjs` blocks after template expansion
+
+If `--templater-scripts` is omitted, the CLI looks for common folders such as:
+
+- `scripts/scripts-for-templater/isolated`
+- `scripts/templater`
+- `scripts/user`
+- `scripts`
+
+This is read-only rendering. It is meant to show what a note would produce, not to emulate every Templater side effect.
 
 ## Query Support
 
-The query APIs are implemented with a compatibility-focused subset of Dataview query language.
+Dataview query support is compatibility-focused rather than complete.
 
-Supported query families:
+Currently supported query families:
 
 - `LIST`
 - `TABLE`
 - `TASK`
 
-Supported clauses:
+Currently supported clauses:
 
 - `FROM`
 - `FLATTEN`
@@ -179,17 +217,47 @@ Supported clauses:
 - `SORT`
 - `LIMIT`
 
-This is enough for many practical CLI workflows, but it is not yet a full Dataview DQL implementation.
+That is enough for many CLI workflows, but it is not a full Dataview DQL implementation.
+
+## Vault Parsing Behavior
+
+The vault indexer currently supports:
+
+- YAML frontmatter fields
+- YAML list-style tags
+- inline fields like `owner:: Alice`
+- markdown tasks like `- [ ] Task`
+- inline `#tags`
+- wikilinks like:
+  - `[[Note]]`
+  - `[[folder/Note]]`
+  - `[[Note#Section]]`
+  - `[[Note|Alias]]`
+- backlink tracking via `file.inlinks`
+- `file.day` inference from filenames like `2025-01-16.md`
+
+Code fences are stripped before metadata extraction so tags and links inside code blocks are not indexed as note metadata.
+
+## `dv.view(...)` Support
+
+Custom views can be loaded from:
+
+- `<vault>/<path>.js`
+- `<vault>/<path>/view.js`
+- `<vault>/scripts/<path>.js`
+- `<vault>/scripts/<path>/view.js`
+
+If a folder-based `view.js` has a sibling `view.css`, that CSS is injected into the rendered output.
 
 ## Development
 
-Run the test suite:
+Run the test suite with:
 
 ```bash
 npm test
 ```
 
-The project uses:
+The project currently uses:
 
 - Node.js built-in test runner
 - no external runtime dependencies
@@ -199,14 +267,19 @@ The project uses:
 
 The current test suite covers:
 
-- CLI `run` and `eval`
+- CLI `run`
+- CLI `eval`
+- CLI `daily`
 - vault indexing and backlink resolution
 - basename wikilink resolution
 - `dv.view(...)`
 - render helpers
-- value helpers
+- Dataview utility helpers
 - file I/O helpers
-- query/evaluation helpers
+- query and evaluation helpers
+- Templater rendering
+- markdown transclusions
+- end-to-end daily rendering
 
 The test suite must pass before changes should be considered complete.
 
@@ -215,6 +288,7 @@ The test suite must pass before changes should be considered complete.
 ```text
 src/
   cli.js
+  daily.js
   runtime.js
   vault.js
 fixtures/
@@ -222,18 +296,21 @@ fixtures/
   scripts/
 test/
   cli.test.js
+skills/
+  dataviewjs-cli/
 ```
 
 ## Roadmap
 
 Likely next improvements:
 
-- broader DQL coverage
-- better task/list metadata parity
-- richer date/duration compatibility
-- more exact Dataview value semantics
+- broader DQL support
+- richer task/list metadata parity
+- more Templater compatibility
+- better embed/transclusion fidelity
+- improved date and duration semantics
 - packaging as a published npm CLI
 
 ## License
 
-This project is licensed under the MIT License. See [LICENSE](./LICENSE).
+MIT. See [LICENSE](./LICENSE).

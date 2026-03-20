@@ -2,6 +2,7 @@
 
 const fs = require("node:fs");
 const path = require("node:path");
+const { renderDailyNote } = require("./daily");
 const { runDataviewJs } = require("./runtime");
 
 function printHelp() {
@@ -10,11 +11,16 @@ function printHelp() {
       "Usage:",
       "  dataviewjs run --vault <path> --current <note.md> <script-file>",
       '  dataviewjs eval --vault <path> --current <note.md> "<script>"',
+      "  dataviewjs daily --vault <path> [--date <YYYY-MM-DD>]",
       "",
       "Options:",
       "  --vault <path>      Path to the markdown vault",
       "  --current <path>    Current note path relative to the vault",
       "  --format <name>     markdown | json | text (default: markdown)",
+      "  --date <YYYY-MM-DD> Date for `daily` (default: today)",
+      "  --template <path>   Template file for `daily` (default: templates/Daily note template.md)",
+      "  --daily-folder <p>  Daily notes folder for `daily` (default: journal)",
+      "  --templater-scripts <path> Script root for `tp.user.*` (auto-detected if omitted)",
       "  --help              Show this help message"
     ].join("\n")
   );
@@ -41,6 +47,14 @@ function parseArgs(argv) {
       options.current = args.shift();
     } else if (token === "--format") {
       options.format = args.shift();
+    } else if (token === "--date") {
+      options.date = args.shift();
+    } else if (token === "--template") {
+      options.template = args.shift();
+    } else if (token === "--daily-folder") {
+      options.dailyFolder = args.shift();
+    } else if (token === "--templater-scripts") {
+      options.templaterScripts = args.shift();
     } else if (token === "--help" || token === "-h") {
       options.help = true;
     } else if (!options.input) {
@@ -67,12 +81,31 @@ async function main() {
       return;
     }
 
-    if (!options.command || !["run", "eval"].includes(options.command)) {
-      throw new Error("Command must be one of: run, eval");
+    if (!options.command || !["run", "eval", "daily"].includes(options.command)) {
+      throw new Error("Command must be one of: run, eval, daily");
     }
     if (!options.vault) {
       throw new Error("Missing required option: --vault");
     }
+
+    if (options.command === "daily") {
+      const result = await renderDailyNote({
+        vaultPath: path.resolve(options.vault),
+        date: options.date,
+        templatePath: options.template,
+        dailyFolder: options.dailyFolder,
+        templaterScripts: options.templaterScripts
+      });
+
+      if (typeof result === "string" && result.length > 0) {
+        process.stdout.write(result);
+        if (!result.endsWith("\n")) {
+          process.stdout.write("\n");
+        }
+      }
+      return;
+    }
+
     if (!options.current) {
       throw new Error("Missing required option: --current");
     }

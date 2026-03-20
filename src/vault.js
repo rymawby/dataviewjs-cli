@@ -109,6 +109,10 @@ function parseInlineFields(lines, target) {
   }
 }
 
+function stripFencedCodeBlocks(text) {
+  return text.replace(/```[\s\S]*?```/g, "");
+}
+
 function parseTasks(lines) {
   const tasks = [];
   for (const line of lines) {
@@ -197,7 +201,8 @@ function buildPage(vaultPath, filePath) {
   const content = fs.readFileSync(filePath, "utf8");
   const relativePath = path.relative(vaultPath, filePath).replace(/\\/g, "/");
   const { fields, body } = parseFrontmatter(content);
-  const lines = body.split("\n");
+  const codeFreeBody = stripFencedCodeBlocks(body);
+  const lines = codeFreeBody.split("\n");
   parseInlineFields(lines, fields);
   const frontmatterTags = Array.isArray(fields.tags)
     ? fields.tags.map((tag) => (String(tag).startsWith("#") ? String(tag) : `#${tag}`))
@@ -210,7 +215,7 @@ function buildPage(vaultPath, filePath) {
             .map((tag) => (tag.startsWith("#") ? tag : `#${tag}`))
         )
       : [];
-  const tags = new Set([...parseTags(body), ...frontmatterTags]);
+  const tags = new Set([...parseTags(codeFreeBody), ...frontmatterTags]);
 
   return {
     path: relativePath,
@@ -219,7 +224,7 @@ function buildPage(vaultPath, filePath) {
     fields,
     tasks: parseTasks(lines),
     tags: [...tags],
-    links: parseLinks(body),
+    links: parseLinks(codeFreeBody),
     inlinks: []
   };
 }
