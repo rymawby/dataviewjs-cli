@@ -311,6 +311,7 @@ test("daily renderer processes templater, transclusions, and dataview blocks", a
 
   assert.match(output, /^# 2025-08-06/m);
   assert.match(output, /Hello 2025-08-06 \(true\)/);
+  assert.match(output, /Alpha/);
   assert.match(output, /Shared transcluded content\./);
   assert.match(output, /- Alpha/);
   assert.match(output, /- Beta/);
@@ -336,6 +337,7 @@ test("cli daily renders a dated note from template", async () => {
 
   assert.match(stdout, /^# 2025-08-06/m);
   assert.match(stdout, /Hello 2025-08-06 \(true\)/);
+  assert.match(stdout, /Alpha/);
   assert.match(stdout, /Shared transcluded content\./);
   assert.match(stdout, /- Alpha/);
 });

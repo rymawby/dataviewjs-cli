@@ -52,42 +52,38 @@ function detectTemplaterScriptFolder(vaultPath, configured) {
 
 function loadUserFunctions(scriptRoot, globals) {
   const user = {};
+
+  function withAppBinding(callback) {
+    const prior = global.app;
+    global.app = globals.app;
+    try {
+      const result = callback();
+      if (result && typeof result.then === "function") {
+        return result.finally(() => {
+          global.app = prior;
+        });
+      }
+      global.app = prior;
+      return result;
+    } catch (error) {
+      global.app = prior;
+      throw error;
+    }
+  }
+
   for (const filePath of collectJavaScriptFiles(scriptRoot)) {
     const name = path.basename(filePath, ".js");
     delete require.cache[require.resolve(filePath)];
-    const previousApp = global.app;
-    let loaded;
-    try {
-      global.app = globals.app;
-      loaded = require(filePath);
-    } finally {
-      global.app = previousApp;
-    }
+    const loaded = withAppBinding(() => require(filePath));
 
     if (typeof loaded === "function") {
-      user[name] = (...args) => {
-        const prior = global.app;
-        try {
-          global.app = globals.app;
-          return loaded(...args);
-        } finally {
-          global.app = prior;
-        }
-      };
+      user[name] = (...args) => withAppBinding(() => loaded(...args));
     } else if (loaded && typeof loaded === "object") {
       const wrapped = {};
       for (const [key, value] of Object.entries(loaded)) {
         wrapped[key] =
           typeof value === "function"
-            ? (...args) => {
-                const prior = global.app;
-                try {
-                  global.app = globals.app;
-                  return value(...args);
-                } finally {
-                  global.app = prior;
-                }
-              }
+            ? (...args) => withAppBinding(() => value(...args))
             : value;
       }
       user[name] = wrapped;

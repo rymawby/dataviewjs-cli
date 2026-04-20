@@ -1,6 +1,7 @@
 # <% tp.file.title %>
 
 <%* tR += await tp.user.greeting(tp) %>
+<%* tR += await tp.user["uses-app-after-await"]() %>
 
 ![[Shared#Daily Block]]
 

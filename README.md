@@ -2,7 +2,10 @@
 
 Run DataviewJS outside Obsidian.
 
-`dataviewjs-cli` is a small CLI for rendering a practical subset of Obsidian workflows from the terminal. It started as a personal tool, largely vibe engineered to make it easier to inspect `dataviewjs`, `dv.view(...)`, and daily-note templates without launching Obsidian. If it is useful to someone else, use it.
+`dataviewjs-cli` is a small CLI for rendering a practical subset of Obsidian workflows from the terminal. It started as a personal tool, largely vibe engineered to make it easier to inspect `dataviewjs`, `dv.view(...)`, and daily-note templates without launching Obsidian. 
+
+[![Certified Shovelware](https://justin.searls.co/img/shovelware.svg)](https://justin.searls.co/shovelware/)
+
 
 The project currently focuses on:
 
